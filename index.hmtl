@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monaco Racing - Lamborghini Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 1200px;
+            height: 700px;
+            background: #0f3460;
+            border: 5px solid #e94560;
+            box-shadow: 0 0 50px rgba(233, 69, 96, 0.8);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #1a472a 0%, #0d2818 100%);
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ff41;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff41;
+            font-size: 16px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .hud-item {
+            margin: 8px 0;
+        }
+
+        .lap-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ff41;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff41;
+            font-size: 16px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            text-align: right;
+        }
+
+        .lap-item {
+            margin: 8px 0;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ff41;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 20px;
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            z-index: 10;
+        }
+
+        .controls div {
+            margin: 4px 0;
+        }
+
+        .difficulty-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #ff0000;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff0000;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 20px;
+            border: 2px solid #ff0000;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            z-index: 10;
+        }
+
+        .tire-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #ffaa00;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ffaa00;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 16px;
+            border: 2px solid #ffaa00;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            z-index: 10;
+        }
+
+        .tire-option {
+            margin: 3px 0;
+            cursor: pointer;
+            padding: 3px 6px;
+            border-radius: 3px;
+        }
+
+        .tire-option:hover {
+            background: rgba(255, 170, 0, 0.3);
+        }
+
+        .tire-option.active {
+            background: rgba(255, 170, 0, 0.7);
+            border: 1px solid #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="hud">
+            <div class="hud-item">⚡ SPEED: <span id="speed">0</span> km/h</div>
+            <div class="hud-item">📊 RPM: <span id="rpm">0</span></div>
+            <div class="hud-item">🔧 ENGINE: <span id="engine">Lamborghini Aventador</span></div>
+            <div class="hud-item">💪 POWER: <span id="power">640 HP</span></div>
+        </div>
+
+        <div class="lap-info">
+            <div class="lap-item">🏁 LAP: <span id="lapCount">0</span></div>
+            <div class="lap-item">⏱️ CURRENT: <span id="currentLap">00:00.00</span></div>
+            <div class="lap-item">🏆 BEST: <span id="bestLap">--:--.--</span></div>
+        </div>
+
+        <div class="tire-display">
+            <div>🛞 TIRES:</div>
+            <div class="tire-option" onclick="changeTire('balanced')">● Balanced</div>
+            <div class="tire-option" onclick="changeTire('medium')">● Medium</div>
+            <div class="tire-option" onclick="changeTire('power')">● Power (E)</div>
+        </div>
+
+        <div class="difficulty-display">
+            🎮 EXPERT MODE<br>NO ASSISTS
+        </div>
+
+        <div class="controls">
+            <div>⬆️⬇️ W/S or ARROW KEYS - Accelerate/Brake | ⬅️➡️ A/D - Steer</div>
+            <div>SPACE - Emergency Brake | E - Switch Tire Type</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 1200;
+        canvas.height = 700;
+
+        // Car object
+        const car = {
+            x: 600,
+            y: 500,
+            angle: 0,
+            speed: 0,
+            maxSpeed: 100, // m/s (360 km/h)
+            acceleration: 2,
+            friction: 0.95,
+            brakingForce: 3,
+            width: 40,
+            height: 70,
+            rpm: 0,
+            maxHorsepower: 640,
+            maxTorque: 600,
+            throttle: 0,
+            brake: 0,
+            steering: 0,
+            tireType: 'balanced',
+            lapStartTime: Date.now(),
+            bestLapTime: Infinity,
+            lapCount: 0,
+            crossedStartLine: false,
+            lastX: 600,
+            lastY: 500
+        };
+
+        // Tire system
+        const tires = {
+            balanced: { grip: 1.0, durability: 1.0, tractionMultiplier: 1.0, color: '#00ff41' },
+            medium: { grip: 0.95, durability: 1.1, tractionMultiplier: 0.9, color: '#ffaa00' },
+            power: { grip: 1.15, durability: 0.8, tractionMultiplier: 1.2, color: '#ff0000' }
+        };
+
+        // Input
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === ' ') {
+                car.brake = 1;
+                e.preventDefault();
+            }
+            if (e.key.toLowerCase() === 'e') {
+                changeTire('power');
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+            if (e.key === ' ') {
+                car.brake = 0;
+            }
+        });
+
+        function changeTire(type) {
+            car.tireType = type;
+            document.querySelectorAll('.tire-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Monaco circuit track
+        const track = {
+            type: 'monaco',
+            width: 80,
+            sections: [
+                { x1: 50, y1: 550, x2: 150, y2: 550 }, // Start/Finish straight
+                { x1: 150, y1: 550, x2: 250, y2: 450 }, // Turn 1
+                { x1: 250, y1: 450, x2: 350, y2: 350 }, // Turn 2
+                { x1: 350, y1: 350, x2: 450, y2: 300 }, // Casino Square
+                { x1: 450, y1: 300, x2: 550, y2: 200 }, // Massenet
+                { x1: 550, y1: 200, x2: 700, y2: 150 }, // Portier
+                { x1: 700, y1: 150, x2: 850, y2: 150 }, // Tunnel
+                { x1: 850, y1: 150, x2: 950, y2: 200 }, // Tabac
+                { x1: 950, y1: 200, x2: 1050, y2: 300 }, // Swimming Pool
+                { x1: 1050, y1: 300, x2: 1100, y2: 450 }, // La Rascasse
+                { x1: 1100, y1: 450, x2: 1050, y2: 550 }, // Anthony Nové
+                { x1: 1050, y1: 550, x2: 150, y2: 550 } // Back to start
+            ],
+            startLineX1: 50,
+            startLineX2: 150,
+            startLineY: 550
+        };
+
+        function drawTrack() {
+            ctx.strokeStyle = '#00ff41';
+            ctx.lineWidth = track.width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Draw track
+            ctx.beginPath();
+            for (let i = 0; i < track.sections.length; i++) {
+                const section = track.sections[i];
+                if (i === 0) {
+                    ctx.moveTo(section.x1, section.y1);
+                }
+                ctx.lineTo(section.x2, section.y2);
+            }
+            ctx.stroke();
+
+            // Draw inner grass (darker)
+            ctx.strokeStyle = '#0a6b2b';
+            ctx.lineWidth = track.width - 30;
+            ctx.beginPath();
+            for (let i = 0; i < track.sections.length; i++) {
+                const section = track.sections[i];
+                if (i === 0) {
+                    ctx.moveTo(section.x1, section.y1);
+                }
+                ctx.lineTo(section.x2, section.y2);
+            }
+            ctx.stroke();
+
+            // Start/Finish line
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(track.startLineX1, track.startLineY);
+            ctx.lineTo(track.startLineX2, track.startLineY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Start line label
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('MONACO START/FINISH', 100, 575);
+        }
+
+        function drawCar() {
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.angle);
+
+            // Car body
+            ctx.fillStyle = '#e94560';
+            ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+
+            // Windows
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(-car.width / 2 + 3, -car.height / 3, car.width - 6, car.height / 4);
+
+            // Headlights
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(-car.width / 2 + 5, -car.height / 2 - 2, 8, 8);
+            ctx.fillRect(car.width / 2 - 13, -car.height / 2 - 2, 8, 8);
+
+            ctx.restore();
+        }
+
+        function updateCar() {
+            const tireStats = tires[car.tireType];
+
+            // Input
+            car.throttle = 0;
+            car.steering = 0;
+
+            if (keys['w'] || keys['arrowup']) car.throttle = 1;
+            if (keys['s'] || keys['arrowdown']) car.throttle = -0.5; // Reverse at half power
+            if (keys['a'] || keys['arrowleft']) car.steering = -1;
+            if (keys['d'] || keys['arrowright']) car.steering = 1;
+
+            // Apply acceleration
+            const acceleration = car.acceleration * car.throttle * tireStats.tractionMultiplier;
+            car.speed += acceleration;
+
+            // Braking
+            if (car.brake > 0) {
+                car.speed *= (1 - car.brakingForce * 0.05 * tireStats.grip);
+            }
+
+            // Friction
+            car.speed *= car.friction;
+
+            // Speed limit
+            car.speed = Math.max(-20, Math.min(car.speed, car.maxSpeed));
+
+            // Steering (angle changes with speed for realism)
+            const steeringFactor = 0.08 * (1 - Math.abs(car.speed) / car.maxSpeed * 0.3);
+            car.angle += car.steering * steeringFactor * Math.abs(car.speed) / 10;
+
+            // Position update
+            car.lastX = car.x;
+            car.lastY = car.y;
+            car.x += Math.cos(car.angle) * car.speed;
+            car.y += Math.sin(car.angle) * car.speed;
+
+            // Keep car on track (collision with grass)
+            if (!isOnTrack(car.x, car.y)) {
+                car.x = car.lastX;
+                car.y = car.lastY;
+                car.speed *= 0.7; // Friction from grass
+            }
+
+            // RPM calculation
+            car.rpm = Math.abs(car.throttle) * 7000;
+
+            // Lap timing
+            if (car.y > track.startLineY - 20 && car.y < track.startLineY + 20 &&
+                car.x > track.startLineX1 && car.x < track.startLineX2) {
+                if (!car.crossedStartLine) {
+                    car.crossedStartLine = true;
+                } else {
+                    const lapTime = (Date.now() - car.lapStartTime) / 1000;
+                    car.lapCount++;
+                    if
